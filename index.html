@@ -638,7 +638,7 @@ canvas#screen { display: block; image-rendering: pixelated; image-rendering: cri
   // Version « planche » (jeu_planche_sprites.html) : décors HD, personnages de la planche de sprites tels quels
   const PLANCHE = window.PQ_SET === "planche";
   const HD = !!window.PQ_HD || PLANCHE;
-  const SPRITES_HD = ["max_debout", "max_velo0", "max_genou", "max_joie", "flora_debout", "flora_surprise", "flora_joie",
+  const SPRITES_HD = ["max_debout", "max_velo0", "max_velo1", "max_genou", "max_joie", "flora_debout", "flora_surprise", "flora_joie",
     "velo", "noix"];
   const E = PQ.moteurG(HD ? { w: 200, h: 112, px: 6, r: 6, smooth: true } : { w: 200, h: 112 });
   const { ctx, UI } = E;
@@ -651,10 +651,9 @@ canvas#screen { display: block; image-rendering: pixelated; image-rendering: cri
     .concat(HD ? ["max_velo0", "route_fond", "route_sol", "route_barriere", "route_palmier", "route_rocher"]
       : ["max_velo", "max_velo_anim", "velo_route"])
     .forEach((n) => (files[n] = (HD ? "assets/hd/" : "assets/scenes/") + n + (HD && DECORS.includes(n) ? ".jpg" : ".png")));
-  if (PLANCHE) {
-    SPRITES_HD.forEach((n) => (files[n] = "assets/planche/" + n + ".png"));
-    files.bisou = "assets/planche/bisou_scene.png";
-  }
+  if (PLANCHE) SPRITES_HD.forEach((n) => (files[n] = "assets/planche/" + n + ".png"));
+  // Bisou final des versions HD : la scène du bisou au coucher du soleil de la planche de sprites
+  if (HD) files.bisou = "assets/planche/bisou_scene.png";
 
   // Réglages relevés sur les images de chaque version (sol, trajet du vol, cocotiers, place de Flora sous l'arche)
   const G = HD ? {
@@ -681,7 +680,7 @@ canvas#screen { display: block; image-rendering: pixelated; image-rendering: cri
   }
   // Max à vélo : images du pédalage (planche horizontale de 64 × 64), ou l'image fixe s'il n'y en a pas. En HD, une seule
   // image (deux images générées séparément ne se superposent jamais exactement) animée par un léger rebond et la poussière
-  let pedal = HD ? ["max_velo0"] : ["max_velo"];
+  let pedal = PLANCHE ? ["max_velo0", "max_velo1"] : HD ? ["max_velo0"] : ["max_velo"]; // planche : ses 2 images, recalées
   function splitPedal() {
     const strip = E.img.max_velo_anim;
     if (!strip) return;
@@ -710,13 +709,14 @@ canvas#screen { display: block; image-rendering: pixelated; image-rendering: cri
     if (HD) spokes(x, feet + 1 - bob, WHEELS.max_velo0, phase * 9);
   }
   // Rayons des roues (version HD) : positions relevées sur les images, depuis le bas-centre, en unités du jeu
-  const WHEELS = PLANCHE ? { max_velo0: [[-13.0, -15.2, 13.5], [12.7, -14.8, 13.7]] }
-    : { max_velo0: [[-13.3, -16.4, 14.6], [13.1, -16.3, 14.6]], velo: [[-13.1, -9.7, 11.2], [12.8, -10.7, 10.7]] };
+  // (relevées par tools/roues.py : centre et rayon intérieur du pneu)
+  const WHEELS = PLANCHE ? { max_velo0: [[-15.8, -10.5, 8.8], [14.7, -11.2, 8.8]] }
+    : { max_velo0: [[-15.9, -11.5, 8.8], [15.6, -11.8, 8.8]] };
   function spokes(x, feet, wheels, angle) {
     ctx.strokeStyle = "rgba(52,54,72,0.75)"; // rayons fins et sombres, comme ceux d'un vrai vélo
     ctx.lineWidth = 0.3;
     wheels.forEach(([dx, dy, r]) => {
-      const cx = x + dx, cy = feet + dy, ri = r * 0.78;
+      const cx = x + dx, cy = feet + dy, ri = r * 0.92;
       ctx.beginPath();
       for (let i = 0; i < 3; i++) { // 6 rayons
         const a = angle + (i * Math.PI) / 3;
@@ -1109,7 +1109,7 @@ canvas#screen { display: block; image-rendering: pixelated; image-rendering: cri
     draw(t) {
       draw("plage_arche", 0, 0);
       const m = this.max, p = this.phase, g = G.groundPlage;
-      const card = p === "kiss" && PLANCHE; // version planche : le couple joyeux reste en place sous la carte du bisou
+      const card = p === "kiss" && HD; // versions HD : le couple joyeux reste en place sous la carte du bisou
       const kneeling = ["kneel", "ask", "answer", "yes"].includes(p);
       const joy = p === "joy" || card;
       if (this.bikeX !== null) {
