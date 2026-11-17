@@ -651,9 +651,7 @@ canvas#screen { display: block; image-rendering: pixelated; image-rendering: cri
     .concat(HD ? ["max_velo0", "route_fond", "route_sol", "route_barriere", "route_palmier", "route_rocher"]
       : ["max_velo", "max_velo_anim", "velo_route"])
     .forEach((n) => (files[n] = (HD ? "assets/hd/" : "assets/scenes/") + n + (HD && DECORS.includes(n) ? ".jpg" : ".png")));
-  if (PLANCHE) SPRITES_HD.forEach((n) => (files[n] = "assets/planche/" + n + ".png"));
-  // Bisou final des versions HD : la scène du bisou au coucher du soleil de la planche de sprites
-  if (HD) files.bisou = "assets/planche/bisou_scene.png";
+  if (PLANCHE) SPRITES_HD.concat(["bisou"]).forEach((n) => (files[n] = "assets/planche/" + n + ".png"));
 
   // Réglages relevés sur les images de chaque version (sol, trajet du vol, cocotiers, place de Flora sous l'arche)
   const G = HD ? {
@@ -1109,15 +1107,14 @@ canvas#screen { display: block; image-rendering: pixelated; image-rendering: cri
     draw(t) {
       draw("plage_arche", 0, 0);
       const m = this.max, p = this.phase, g = G.groundPlage;
-      const card = p === "kiss" && HD; // versions HD : le couple joyeux reste en place sous la carte du bisou
       const kneeling = ["kneel", "ask", "answer", "yes"].includes(p);
-      const joy = p === "joy" || card;
+      const joy = p === "joy";
       if (this.bikeX !== null) {
         shadow(this.bikeX, g, 16);
         E.sprite("velo", this.bikeX, g + 1);
       }
       const kx = FLORA_X - 30;
-      if (p === "kiss" && !card) { // le couple enlacé, entre les places de Max et de Flora (Max est dans le dessin)
+      if (p === "kiss") { // le couple enlacé, entre les places de Max et de Flora (Max est dans le dessin)
         shadow(FLORA_X - 15, g, 14);
         E.sprite("bisou", FLORA_X - 15, g + 1);
       } else {
@@ -1145,17 +1142,6 @@ canvas#screen { display: block; image-rendering: pixelated; image-rendering: cri
       }
       if (p === "ready") E.heart(FLORA_X - 3, g - 64 - (Math.floor(t * 3) % 2), UI.rose);
       this.hearts.forEach((h) => E.heart(Math.round(h.x + Math.sin(h.y * 0.1) * 4), Math.round(h.y), UI.rose));
-      if (card) { // la scène du bisou de la planche (coucher de soleil), posée comme une carte au centre de l'écran
-        const a = Math.min(1, this.timer * 2), sz = E.size("bisou");
-        ctx.fillStyle = "rgba(20,10,30," + (0.45 * a).toFixed(2) + ")";
-        ctx.fillRect(0, 0, W, E.H);
-        ctx.globalAlpha = a;
-        const x = (W - sz.w) / 2, y = (E.H - sz.h) / 2 - 2;
-        ctx.fillStyle = "#fff8ec";
-        ctx.fillRect(x - 3, y - 3, sz.w + 6, sz.h + 6);
-        E.blit("bisou", x, y);
-        ctx.globalAlpha = 1;
-      }
     },
     ui() {
       if (this.phase === "ready") E.centerPlate(["ESPACE ou A : FAIRE MA DEMANDE"], 12, UI.gold);
