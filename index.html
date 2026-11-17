@@ -641,24 +641,27 @@ canvas#screen { display: block; image-rendering: pixelated; image-rendering: cri
   const W = E.W, S = E.S;
   window.PQfit && window.PQfit();
 
-  const files = {}, DECORS = ["aeroport", "carte", "digue", "velo_route", "plage_arche", "faire_part"]; // en HD : JPEG
-  ["aeroport", "carte", "digue", "velo_route", "plage_arche", "faire_part", "max_genou", "max_debout", "max_joie",
+  const files = {}, DECORS = ["aeroport", "carte", "digue", "plage_arche", "faire_part", "route_fond", "route_sol"]; // HD : JPEG
+  ["aeroport", "carte", "digue", "plage_arche", "faire_part", "max_genou", "max_debout", "max_joie",
     "flora_debout", "flora_surprise", "flora_joie", "velo", "noix", "avion", "bisou"]
-    .concat(HD ? ["max_velo0", "max_velo1"] : ["max_velo", "max_velo_anim"])
+    .concat(HD ? ["max_velo0", "route_fond", "route_sol", "route_barriere", "route_palmier", "route_rocher"]
+      : ["max_velo", "max_velo_anim", "velo_route"])
     .forEach((n) => (files[n] = (HD ? "assets/hd/" : "assets/scenes/") + n + (HD && DECORS.includes(n) ? ".jpg" : ".png")));
 
   // Réglages relevés sur les images de chaque version (sol, trajet du vol, cocotiers, place de Flora sous l'arche)
   const G = HD ? {
     groundAirport: 104, groundDigue: 106, groundRoute: 96, groundPlage: 105,
     route: [[32, 26], [62, 38], [92, 52], [122, 64], [149, 73]],
-    crowns: [37, 157], tile: 283, mirror: true, // la route HD n'est pas répétable : elle alterne avec son reflet
-    flora: 96, mapLabel: false, // la carte de la planche porte déjà ses étiquettes
+    crowns: [], tile: 200, // route HD : couches (drawRoute)
+    flora: 96, mapLabel: false,
+    // étiquettes de la carte générée (texte déformé par l'IA) recouvertes par des plaques nettes (coordonnées d'interface)
+    mapPlates: [[94, 5, 214, 33, "FRANCE  >  SEYCHELLES"], [268, 175, 98, 26, "SEYCHELLES"]],
     fpCenter: 0.578 // centre du parchemin du faire-part
   } : {
     groundAirport: 104, groundDigue: 106, groundRoute: 96, groundPlage: 104,
     route: [[34, 27], [60, 37], [90, 50], [120, 63], [147, 72]], // du drapeau français à l'épingle des Seychelles
     crowns: [20, 180], // couronnes des cocotiers de la route (x dans la tuile, répétée sans miroir)
-    tile: 200, mirror: false, flora: 136, mapLabel: true, fpCenter: 0.565
+    tile: 200, flora: 136, mapLabel: true, mapPlates: [], fpCenter: 0.565
   };
 
   const draw = (name, x, y) => E.blit(name, x, y);
@@ -668,8 +671,9 @@ canvas#screen { display: block; image-rendering: pixelated; image-rendering: cri
     ctx.ellipse(Math.round(x), Math.round(y), rx || 10, 2, 0, 0, Math.PI * 2);
     ctx.fill();
   }
-  // Max à vélo : images du pédalage (planche horizontale de 64 × 64), ou l'image fixe s'il n'y en a pas ; en HD, deux images
-  let pedal = HD ? ["max_velo0", "max_velo1"] : ["max_velo"];
+  // Max à vélo : images du pédalage (planche horizontale de 64 × 64), ou l'image fixe s'il n'y en a pas. En HD, une seule
+  // image (deux images générées séparément ne se superposent jamais exactement) animée par un léger rebond et la poussière
+  let pedal = HD ? ["max_velo0"] : ["max_velo"];
   function splitPedal() {
     const strip = E.img.max_velo_anim;
     if (!strip) return;
@@ -683,9 +687,43 @@ canvas#screen { display: block; image-rendering: pixelated; image-rendering: cri
       pedal.push("pedal" + i);
     }
   }
+  function bike(x, feet, phase, moving) {
+    if (HD && moving) { // poussière soulevée par la roue arrière, qui s'éloigne et s'efface
+      for (let i = 0; i < 3; i++) {
+        const k = (phase * 1.6 + i / 3) % 1;
+        ctx.fillStyle = "rgba(236,214,170," + (0.55 * (1 - k)).toFixed(2) + ")";
+        ctx.beginPath();
+        ctx.arc(x - 20 - k * 14, feet - 1 - k * 4, 1.2 + k * 2.4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    const bob = HD && moving ? (Math.floor(phase * 10) % 2) * 0.5 : 0; // rebond d'un demi-pixel du jeu
+    E.sprite(moving ? pedal[Math.floor(phase * 8) % pedal.length] : pedal[0], x, feet + 1 - bob);
+    if (HD) spokes(x, feet + 1 - bob, WHEELS.max_velo0, phase * 9);
+  }
+  // Rayons des roues (version HD) : positions relevées sur les images, depuis le bas-centre, en unités du jeu
+  const WHEELS = { max_velo0: [[-13.3, -16.4, 14.6], [13.1, -16.3, 14.6]], velo: [[-13.1, -9.7, 11.2], [12.8, -10.7, 10.7]] };
+  function spokes(x, feet, wheels, angle) {
+    ctx.strokeStyle = "rgba(52,54,72,0.75)"; // rayons fins et sombres, comme ceux d'un vrai vélo
+    ctx.lineWidth = 0.3;
+    wheels.forEach(([dx, dy, r]) => {
+      const cx = x + dx, cy = feet + dy, ri = r * 0.78;
+      ctx.beginPath();
+      for (let i = 0; i < 3; i++) { // 6 rayons
+        const a = angle + (i * Math.PI) / 3;
+        ctx.moveTo(cx - Math.cos(a) * ri, cy - Math.sin(a) * ri);
+        ctx.lineTo(cx + Math.cos(a) * ri, cy + Math.sin(a) * ri);
+      }
+      ctx.stroke();
+      ctx.fillStyle = "#2a2b36";
+      ctx.beginPath();
+      ctx.arc(cx, cy, 1.2, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }
   function rider(x, feet, step, moving) {
     shadow(x + 2, feet, 18);
-    E.sprite(moving ? pedal[Math.floor(step * (HD ? 5 : 8)) % pedal.length] : pedal[0], x, feet + 1);
+    bike(x, feet, step, moving);
   }
   // Logo en lettres dorées cernées de brun, comme celui de la planche
   function logo(s, y, size, cx) {
@@ -806,6 +844,11 @@ canvas#screen { display: block; image-rendering: pixelated; image-rendering: cri
     },
     ui() {
       if (G.mapLabel) label("FRANCE  >  SEYCHELLES", 100, 10);
+      G.mapPlates.forEach(([x, y, w, h, s]) => {
+        E.plate(x, y, w, h);
+        E.out.font = '8px "Press Start 2P", monospace';
+        E.text(s, Math.round(x + (w - E.out.measureText(s).width) / 2), Math.round(y + (h - 8) / 2), UI.white);
+      });
     }
   };
 
@@ -844,6 +887,24 @@ canvas#screen { display: block; image-rendering: pixelated; image-rendering: cri
   };
 
   // ----------------------------------------------------------------- 5. Parcours à vélo
+  // Route HD en couches : fond (ciel, mer, île) qui défile lentement, puis palmiers, rochers, barrière et sable
+  const PALMS = [], ROCKS = [], FENCE_Y = 68, PALM_CROWN = [4, FENCE_Y + 2 - 46]; // noix de coco du palmier (x relatif, y)
+  for (let x = 70, i = 0; x < 1500; i++) {
+    PALMS.push(x);
+    if (i % 2 === 0) ROCKS.push(x + 52);
+    x += 105 + ((i * 37) % 3) * 22; // espacement irrégulier mais fixe
+  }
+  function strip(name, cam, speed, y) {
+    const w = E.size(name).w, off = (((cam * speed) % w) + w) % w;
+    for (let x = -off; x < W; x += w) E.blit(name, x, y);
+  }
+  function drawRoute(cam) {
+    strip("route_fond", cam, 0.3, 0);
+    strip("route_sol", cam, 1, E.H - E.size("route_sol").h); // sable (bord haut : y = 64) et buissons
+    ROCKS.forEach((x) => x - cam > -40 && x - cam < W + 40 && E.sprite("route_rocher", x - cam, FENCE_Y));
+    PALMS.forEach((x) => x - cam > -40 && x - cam < W + 40 && E.sprite("route_palmier", x - cam, FENCE_Y + 2));
+    strip("route_barriere", cam, 1, FENCE_Y + 3 - E.size("route_barriere").h);
+  }
   const TILE = G.tile, LENGTH = 1120, BIKE_X = 44, NUT_GAP = 170; // une noix à la fois, espacées de NUT_GAP
   sc.velo = {
     BIKE_X,
@@ -886,11 +947,16 @@ canvas#screen { display: block; image-rendering: pixelated; image-rendering: cri
       this.inv = Math.max(0, this.inv - dt);
       // Une seule noix de coco à la fois : elle tombe du prochain cocotier quand la précédente est passée
       if (!this.nuts.length && this.d >= this.nextNut && this.d < LENGTH - 160) {
-        for (let k = Math.floor(this.d / TILE); k <= Math.floor(this.d / TILE) + 2 && !this.nuts.length; k++) {
-          G.crowns.forEach((cx) => {
-            const x = k * TILE + (G.mirror && k % 2 ? TILE - cx : cx);
-            if (!this.nuts.length && x - this.d > 130 && x - this.d < 240) this.nuts.push({ x, y: 12, vy: 0, falling: true });
-          });
+        if (HD) { // depuis la couronne du prochain palmier posé sur la route
+          const p = PALMS.find((px) => px - this.d > 130 && px - this.d < 260);
+          if (p !== undefined) this.nuts.push({ x: p + PALM_CROWN[0], y: PALM_CROWN[1], vy: 0, falling: true });
+        } else {
+          for (let k = Math.floor(this.d / TILE); k <= Math.floor(this.d / TILE) + 2 && !this.nuts.length; k++) {
+            G.crowns.forEach((cx) => {
+              const x = k * TILE + cx;
+              if (!this.nuts.length && x - this.d > 130 && x - this.d < 240) this.nuts.push({ x, y: 12, vy: 0, falling: true });
+            });
+          }
         }
         this.nextNut = this.d + NUT_GAP;
       }
@@ -915,22 +981,25 @@ canvas#screen { display: block; image-rendering: pixelated; image-rendering: cri
       this.nuts = this.nuts.filter((n) => !n.hit && n.x - this.d > -30);
     },
     draw(t) {
-      const cam = Math.round(this.d), g = G.groundRoute;
-      for (let k = Math.floor(cam / TILE); k <= Math.floor(cam / TILE) + 1; k++) {
-        E.blit(G.mirror && k % 2 ? E.flip("velo_route") : "velo_route", k * TILE - cam, 0);
-      }
+      const cam = HD ? this.d : Math.round(this.d), g = G.groundRoute;
+      if (HD) drawRoute(cam);
+      else for (let k = Math.floor(cam / TILE); k <= Math.floor(cam / TILE) + 1; k++) E.blit("velo_route", k * TILE - cam, 0);
       this.nuts.forEach((n) => {
         const x = Math.round(n.x - cam);
         if (n.falling) {
           const k = Math.min(1, (n.y - 12) / (g - 14));
           ctx.fillStyle = "rgba(60,40,20,0.3)";
-          ctx.fillRect(x - 2 - k * 3, g, 4 + k * 6, 2);
+          if (HD) { // ombre ronde qui grandit à l'approche du sol
+            ctx.beginPath();
+            ctx.ellipse(x, g, 1.5 + k * 3.5, 0.6 + k * 0.8, 0, 0, Math.PI * 2);
+            ctx.fill();
+          } else ctx.fillRect(x - 2 - k * 3, g, 4 + k * 6, 2);
         }
         E.sprite("noix", x, Math.round(n.y) + 1);
       });
       shadow(BIKE_X + 2, g, 16);
       if (this.inv <= 0 || Math.floor(t * 16) % 2) {
-        E.sprite(this.h > 0 ? pedal[0] : pedal[Math.floor(this.d / (HD ? 14 : 8)) % pedal.length], BIKE_X, g + 1 - Math.round(this.h));
+        bike(BIKE_X, g - this.h, this.d / 64, this.h === 0);
       }
       for (let i = 0; i < 3; i++) E.heart(4 + i * 10, 4, i < this.lives ? UI.rose : "rgba(40,30,50,0.35)");
     },
