@@ -84,11 +84,11 @@ canvas#screen { display: block; image-rendering: pixelated; image-rendering: cri
 #pq-finale[data-step="invite"] .pq-photo-step { display: none; }
 
 .pq-polaroid {
-  margin: 0; background: #ffffff; padding: 12px 12px 18px; box-sizing: border-box; max-width: min(460px, 100%);
+  margin: 0; background: #ffffff; padding: 12px 12px 18px; box-sizing: border-box; max-width: min(620px, 100%);
   box-shadow: 0 12px 30px rgba(80, 50, 20, 0.25); transform: rotate(-2deg);
   animation: pq-develop 2.4s ease-out both;
 }
-.pq-polaroid img { display: block; width: auto; max-width: 100%; max-height: 58vh; height: auto; margin: 0 auto; }
+.pq-polaroid img { display: block; width: auto; max-width: 100%; max-height: 68vh; height: auto; margin: 0 auto; }
 .pq-polaroid figcaption { font: 15px/1.4 "Nunito Sans", system-ui, sans-serif; margin-top: 10px; color: #6a5040; }
 @keyframes pq-develop { from { opacity: 0; filter: brightness(2.2) saturate(0); } to { opacity: 1; filter: none; } }
 .pq-kicker { font: 14px/1.6 "Press Start 2P", ui-monospace, monospace; color: var(--pq-rose); margin: 0; }
@@ -141,12 +141,12 @@ canvas#screen { display: block; image-rendering: pixelated; image-rendering: cri
 }
 .pq-fp-photo { position: relative; z-index: 1; margin-right: -5%; transform: rotate(-4deg); max-width: none; }
 .pq-fp-photo { padding-bottom: 12px; }
-.pq-fp-photo img { height: min(70vh, 680px); width: auto; max-width: 100%; max-height: none; image-rendering: auto; }
+.pq-fp-photo img { height: min(78vh, 760px); width: auto; max-width: 100%; max-height: none; image-rendering: auto; }
 .pq-fp-card { display: block; width: 100%; height: auto; image-rendering: pixelated; box-shadow: 0 16px 40px rgba(60, 40, 20, 0.35); border-radius: 6px; }
 @media (max-width: 760px), (orientation: portrait) {
   #pq-finale .pq-fp.pq-card-custom { grid-template-columns: minmax(0, 1fr); justify-items: center; }
   .pq-fp-photo { margin: 0 0 -6%; transform: rotate(-3deg); }
-  .pq-fp-photo img { height: min(56vh, 620px); }
+  .pq-fp-photo img { height: min(62vh, 680px); }
 }
 </style>
 <style>canvas#screen { image-rendering: auto; } /* version HD : agrandissement lissé */</style>
@@ -549,7 +549,6 @@ canvas#screen { display: block; image-rendering: pixelated; image-rendering: cri
     <section class="pq-photo-step">
       <figure class="pq-polaroid">
         <img class="pq-photo-main" alt="Maxime à genou devant Flora sous l'arche fleurie d'Anse Patate">
-        <figcaption>La demande · Anse Patate, La Digue</figcaption>
       </figure>
       <p class="pq-kicker">Elle a dit oui !</p>
       <button type="button" class="pq-btn" data-go="invite">Ouvrir le faire-part</button>
@@ -643,7 +642,10 @@ canvas#screen { display: block; image-rendering: pixelated; image-rendering: cri
   const PQ = window.PQ;
   // Version « planche » (jeu_planche_sprites.html) : décors HD, personnages de la planche de sprites tels quels
   const PLANCHE = window.PQ_SET === "planche";
-  const HD = !!window.PQ_HD || PLANCHE;
+  // Version « Gemini » (jeu_gemini.html) : décors et personnages dessinés par Gemini (assets/gemini/, tools/gemini_prep.py) ;
+  // carte, faire-part, avion et noix de la version HD
+  const GEMINI = window.PQ_SET === "gemini";
+  const HD = !!window.PQ_HD || PLANCHE || GEMINI;
   const SPRITES_HD = ["max_debout", "max_velo0", "max_velo1", "max_genou", "max_joie", "flora_debout", "flora_surprise", "flora_joie",
     "velo", "noix"];
   const E = PQ.moteurG(HD ? { w: 200, h: 112, px: 6, r: 6, smooth: true } : { w: 200, h: 112 });
@@ -658,13 +660,22 @@ canvas#screen { display: block; image-rendering: pixelated; image-rendering: cri
       : ["max_velo", "max_velo_anim", "velo_route"])
     .forEach((n) => (files[n] = (HD ? "assets/hd/" : "assets/scenes/") + n + (HD && DECORS.includes(n) ? ".jpg" : ".png")));
   if (PLANCHE) SPRITES_HD.concat(["bisou"]).forEach((n) => (files[n] = "assets/planche/" + n + ".png"));
+  if (GEMINI) {
+    ["max_debout", "max_genou", "max_joie", "flora_debout", "flora_surprise", "flora_joie", "bisou"]
+      .concat([0, 1, 2, 3].map((i) => "max_velo" + i)).forEach((n) => (files[n] = "assets/gemini/" + n + ".png"));
+    ["aeroport", "digue", "plage_arche", "route"].forEach((n) => (files[n] = "assets/gemini/" + n + ".jpg"));
+    ["route_fond", "route_barriere", "route_palmierA", "route_palmierB"].forEach((n) => (files[n] = "assets/gemini/" + n
+      + (n === "route_fond" ? ".jpg" : ".png")));
+    ["velo", "route_sol", "route_palmier", "route_rocher"].forEach((n) => delete files[n]);
+  }
 
   // Réglages relevés sur les images de chaque version (sol, trajet du vol, cocotiers, place de Flora sous l'arche)
   const G = HD ? {
     groundAirport: 104, groundDigue: 106, groundRoute: 96, groundPlage: 105,
     route: [[32, 26], [62, 38], [92, 52], [122, 64], [149, 73]],
     crowns: [], tile: 200, // route HD : couches (drawRoute)
-    flora: 96, mapLabel: false,
+    flora: GEMINI ? 128 : 96, mapLabel: false, // Gemini : Flora sous l'arche
+    ring: GEMINI ? null : [13, -34], // éclat de la bague, depuis le bas-centre de Max à genou
     // étiquettes de la carte générée (texte déformé par l'IA) recouvertes par des plaques nettes (coordonnées d'interface)
     mapPlates: [[94, 5, 214, 33, "FRANCE  >  SEYCHELLES"], [268, 175, 98, 26, "SEYCHELLES"]],
     fpCenter: 0.578 // centre du parchemin du faire-part
@@ -672,7 +683,7 @@ canvas#screen { display: block; image-rendering: pixelated; image-rendering: cri
     groundAirport: 104, groundDigue: 106, groundRoute: 96, groundPlage: 104,
     route: [[34, 27], [60, 37], [90, 50], [120, 63], [147, 72]], // du drapeau français à l'épingle des Seychelles
     crowns: [20, 180], // couronnes des cocotiers de la route (x dans la tuile, répétée sans miroir)
-    tile: 200, flora: 136, mapLabel: true, mapPlates: [], fpCenter: 0.565
+    tile: 200, flora: 136, mapLabel: true, ring: [13, -34], mapPlates: [], fpCenter: 0.565
   };
 
   const draw = (name, x, y) => E.blit(name, x, y);
@@ -684,7 +695,8 @@ canvas#screen { display: block; image-rendering: pixelated; image-rendering: cri
   }
   // Max à vélo : images du pédalage (planche horizontale de 64 × 64), ou l'image fixe s'il n'y en a pas. En HD, une seule
   // image (deux images générées séparément ne se superposent jamais exactement) animée par un léger rebond et la poussière
-  let pedal = PLANCHE ? ["max_velo0", "max_velo1"] : HD ? ["max_velo0"] : ["max_velo"]; // planche : ses 2 images, recalées
+  let pedal = GEMINI ? [0, 1, 2, 3, 2, 1].map((i) => "max_velo" + i) // Gemini : 4 images (même vélo) en aller-retour
+    : PLANCHE ? ["max_velo0", "max_velo1"] : HD ? ["max_velo0"] : ["max_velo"]; // planche : ses 2 images, recalées
   function splitPedal() {
     const strip = E.img.max_velo_anim;
     if (!strip) return;
@@ -714,7 +726,8 @@ canvas#screen { display: block; image-rendering: pixelated; image-rendering: cri
   }
   // Rayons des roues (version HD) : positions relevées sur les images, depuis le bas-centre, en unités du jeu
   // (relevées par tools/roues.py : centre et rayon intérieur du pneu)
-  const WHEELS = PLANCHE ? { max_velo0: [[-15.8, -10.5, 8.8], [14.7, -11.2, 8.8]] }
+  const WHEELS = GEMINI ? { max_velo0: [[-13.8, -10.2, 8.8], [13.3, -10.5, 8.8]] }
+    : PLANCHE ? { max_velo0: [[-15.8, -10.5, 8.8], [14.7, -11.2, 8.8]] }
     : { max_velo0: [[-15.9, -11.5, 8.8], [15.6, -11.8, 8.8]] };
   function spokes(x, feet, wheels, angle) {
     ctx.strokeStyle = "rgba(52,54,72,0.75)"; // rayons fins et sombres, comme ceux d'un vrai vélo
@@ -911,7 +924,70 @@ canvas#screen { display: block; image-rendering: pixelated; image-rendering: cri
     const w = E.size(name).w, off = (((cam * speed) % w) + w) % w;
     for (let x = -off; x < W; x += w) E.blit(name, x, y);
   }
-  function drawRoute(cam) {
+  // Gemini (tools/gemini_prep.py) : fond (ciel, mer, barrière, sable) au pas de la route, deux cocotiers en alternance
+  // posés sur le sable derrière la barrière, puis la barrière redessinée devant eux ; couronnes relevées par gemini_prep
+  const GEM_PALMS = [["route_palmierA", [-0.2, -42.5]], ["route_palmierB", [-0.1, -46.7]]], GEM_SAND = 83, GEM_FENCE = 66;
+  const palmOf = (i) => GEM_PALMS[i % 2];
+  const NUT_SPOTS = PALMS.map((x, i) => GEMINI ? [x + palmOf(i)[1][0], GEM_SAND + palmOf(i)[1][1]]
+    : [x + PALM_CROWN[0], PALM_CROWN[1]]); // d'où tombent les noix : couronnes des cocotiers le long du parcours
+  // Dauphin qui saute hors de l'eau, au loin (pixel art dessiné ici ; 1 case = DOLPHIN_PX unité du jeu)
+  const DOLPHIN = [
+    "............oo..........",
+    "...........obo..........",
+    "..........obbo..........",
+    ".....oooooobbbooooo.....",
+    "o...oobbbbbbbbbbbbbboo..",
+    "obo.obbbbbbbbbbbbbbbeboo",
+    ".obbobbwwwwwwwwwwbbbbbbo",
+    ".obbbwwwwwwwwwwwwwwwoooo",
+    "obo.oowwwwwwwwwwwooo....",
+    "o.....ooooooooooo......."];
+  const DOLPHIN_PX = 0.75, DOLPHIN_COLORS = { o: "#1d2b3e", b: "#5f86a8", w: "#d6e4ee", e: "#0b0f18" };
+  let dolphinImg = null;
+  function dolphinSprite() {
+    if (dolphinImg) return dolphinImg;
+    const c = document.createElement("canvas");
+    c.width = DOLPHIN[0].length;
+    c.height = DOLPHIN.length;
+    const g = c.getContext("2d");
+    DOLPHIN.forEach((row, y) => [...row].forEach((ch, x) => {
+      if (DOLPHIN_COLORS[ch]) {
+        g.fillStyle = DOLPHIN_COLORS[ch];
+        g.fillRect(x, y, 1, 1);
+      }
+    }));
+    return (dolphinImg = c);
+  }
+  const SEA_Y = 69; // ligne de l'eau, entre l'horizon et la barrière
+  function splash(x, k) { // gouttes blanches qui retombent
+    ctx.fillStyle = "rgba(255,255,255," + (0.9 * (1 - k)).toFixed(2) + ")";
+    for (let i = -2; i <= 2; i++) ctx.fillRect(x + i * 1.6, SEA_Y - 1 - Math.sin(Math.PI * k) * (3 - Math.abs(i)) * 1.4, 0.8, 0.8);
+  }
+  function drawDolphin(d, cam) {
+    const k = d.t / d.dur, x = d.x - cam - k * 22, y = SEA_Y + 2 - Math.sin(Math.PI * k) * 15;
+    const angle = 0.6 * Math.atan2(-Math.cos(Math.PI * k) * 15 * Math.PI, 22); // suit (en plus doux) la pente du saut
+    const img = dolphinSprite();
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, W, SEA_Y); // il sort de l'eau : rien sous la ligne de l'eau
+    ctx.clip();
+    ctx.translate(x, y);
+    ctx.scale(-1, 1); // il nage vers la gauche, à la rencontre de Max
+    ctx.rotate(angle);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(img, (-img.width / 2) * DOLPHIN_PX, (-img.height / 2) * DOLPHIN_PX, img.width * DOLPHIN_PX, img.height * DOLPHIN_PX);
+    ctx.restore();
+    if (k < 0.25) splash(d.x - cam, k * 4);
+    if (k > 0.75) splash(d.x - cam - 22, (k - 0.75) * 4);
+  }
+  function drawRoute(cam, dolphin) {
+    if (GEMINI) {
+      strip("route_fond", cam, 1, 0);
+      if (dolphin) drawDolphin(dolphin, cam);
+      PALMS.forEach((x, i) => x - cam > -40 && x - cam < W + 40 && E.sprite(palmOf(i)[0], x - cam, GEM_SAND));
+      strip("route_barriere", cam, 1, GEM_FENCE);
+      return;
+    }
     strip("route_fond", cam, 0.3, 0);
     strip("route_sol", cam, 1, E.H - E.size("route_sol").h); // sable (bord haut : y = 64) et buissons
     ROCKS.forEach((x) => x - cam > -40 && x - cam < W + 40 && E.sprite("route_rocher", x - cam, FENCE_Y));
@@ -931,6 +1007,8 @@ canvas#screen { display: block; image-rendering: pixelated; image-rendering: cri
       this.inv = 0;
       this.nuts = [];
       this.nextNut = 120; // distance parcourue à partir de laquelle la prochaine noix peut tomber
+      this.dolphin = null;
+      this.nextDolphin = 2.5; // secondes avant le prochain saut de dauphin
     },
     hit() {
       this.hits++;
@@ -958,11 +1036,18 @@ canvas#screen { display: block; image-rendering: pixelated; image-rendering: cri
       this.h = Math.max(0, this.h + this.vy * dt);
       if (this.h === 0) this.vy = 0;
       this.inv = Math.max(0, this.inv - dt);
+      if (GEMINI) { // de temps en temps, un dauphin saute au loin, devant Max
+        if (this.dolphin && (this.dolphin.t += dt) > this.dolphin.dur) this.dolphin = null;
+        if (!this.dolphin && (this.nextDolphin -= dt) <= 0) {
+          this.dolphin = { x: this.d + 120 + Math.random() * 60, t: 0, dur: 1.3 };
+          this.nextDolphin = 4 + Math.random() * 3;
+        }
+      }
       // Une seule noix de coco à la fois : elle tombe du prochain cocotier quand la précédente est passée
       if (!this.nuts.length && this.d >= this.nextNut && this.d < LENGTH - 160) {
         if (HD) { // depuis la couronne du prochain palmier posé sur la route
-          const p = PALMS.find((px) => px - this.d > 130 && px - this.d < 260);
-          if (p !== undefined) this.nuts.push({ x: p + PALM_CROWN[0], y: PALM_CROWN[1], vy: 0, falling: true });
+          const p = NUT_SPOTS.find(([px]) => px - this.d > 130 && px - this.d < 260);
+          if (p) this.nuts.push({ x: p[0], y: p[1], vy: 0, falling: true });
         } else {
           for (let k = Math.floor(this.d / TILE); k <= Math.floor(this.d / TILE) + 2 && !this.nuts.length; k++) {
             G.crowns.forEach((cx) => {
@@ -995,7 +1080,7 @@ canvas#screen { display: block; image-rendering: pixelated; image-rendering: cri
     },
     draw(t) {
       const cam = HD ? this.d : Math.round(this.d), g = G.groundRoute;
-      if (HD) drawRoute(cam);
+      if (HD) drawRoute(cam, this.dolphin);
       else for (let k = Math.floor(cam / TILE); k <= Math.floor(cam / TILE) + 1; k++) E.blit("velo_route", k * TILE - cam, 0);
       this.nuts.forEach((n) => {
         const x = Math.round(n.x - cam);
@@ -1016,14 +1101,20 @@ canvas#screen { display: block; image-rendering: pixelated; image-rendering: cri
       }
       for (let i = 0; i < 3; i++) E.heart(4 + i * 10, 4, i < this.lives ? UI.rose : "rgba(40,30,50,0.35)");
     },
-    ui() {
+    ui(t) {
       const x = W * S - 170, y = 8;
       E.plate(x, y, 160, 30);
       E.text("ANSE PATATE", x + 12, y + 6, UI.gold);
       E.out.fillStyle = UI.plateEdge;
-      E.out.fillRect(x + 12, y + 20, 136, 3);
+      E.out.fillRect(x + 12, y + 20, 112, 3);
+      // Flora attend au bout de la jauge ; le cœur (Max) avance vers elle
+      const fl = E.img.flora_debout, fh = 30, fw = (fl.width / fl.height) * fh;
+      E.out.imageSmoothingEnabled = HD;
+      E.out.drawImage(fl, Math.round(x + 140 - fw / 2), y + 27 - fh + (Math.floor(t * 2) % 2), fw, fh);
+      E.out.imageSmoothingEnabled = false;
+      const hx = x + 12 + Math.round((106 * Math.min(this.d, LENGTH)) / LENGTH);
       E.out.fillStyle = UI.rose;
-      E.out.fillRect(x + 12 + Math.round((132 * Math.min(this.d, LENGTH)) / LENGTH), y + 17, 4, 9);
+      E.out.fillRect(hx, y + 17, 4, 9);
       if (this.d < 70 * 3.5) { // à droite, sous la jauge : loin de Max
         E.plate(x - 64, y + 40, 224, 40);
         E.text("ESPACE ou B : SAUTER", x - 52, y + 48, UI.gold);
@@ -1044,6 +1135,8 @@ canvas#screen { display: block; image-rendering: pixelated; image-rendering: cri
       this.hearts = [];
       this.near = false;
       this.choice = 0;
+      this.afoot = false; // Max descendu de vélo, debout face à Flora
+      if (GEMINI) this.max.x = MAX_STOP; // pas d'image du vélo seul : Max est déjà là, face à Flora
     },
     burst(n) {
       for (let i = 0; i < n; i++) {
@@ -1064,7 +1157,8 @@ canvas#screen { display: block; image-rendering: pixelated; image-rendering: cri
           m.moving = true;
           if (m.x >= MAX_STOP) {
             m.moving = false;
-            this.bikeX = MAX_STOP - 26;
+            this.afoot = true;
+            if (!GEMINI) this.bikeX = MAX_STOP - 26;
             this.phase = "talk";
             E.say([{ who: "MAXIME", text: "Flora ! Je t'ai enfin retrouvée..." }], () => { this.phase = "ready"; this.timer = 0; });
           }
@@ -1131,15 +1225,16 @@ canvas#screen { display: block; image-rendering: pixelated; image-rendering: cri
         if (kneeling) {
           shadow(kx, g, 11);
           E.sprite("max_genou", kx, g + 1);
-          if (Math.floor(t * 4) % 2) { // éclat de la bague
+          if (G.ring && Math.floor(t * 4) % 2) { // éclat de la bague
+            const [rx, ry] = G.ring;
             ctx.fillStyle = "#ffffff";
-            ctx.fillRect(kx + 13, g - 34, 1, 3);
-            ctx.fillRect(kx + 12, g - 33, 3, 1);
+            ctx.fillRect(kx + rx, g + ry, 1, 3);
+            ctx.fillRect(kx + rx - 1, g + ry + 1, 3, 1);
           }
         } else if (joy) {
           shadow(kx, g, 10);
           E.sprite("max_joie", kx, g + 1 - (Math.floor(t * 5 + 1) % 2) * 2);
-        } else if (this.bikeX !== null) { // vélo posé : Max debout face à Flora
+        } else if (this.afoot || GEMINI) { // vélo posé : Max debout face à Flora
           shadow(kx, g, 9);
           E.sprite("max_debout", kx, g + 1);
         } else {
@@ -1150,7 +1245,7 @@ canvas#screen { display: block; image-rendering: pixelated; image-rendering: cri
       this.hearts.forEach((h) => E.heart(Math.round(h.x + Math.sin(h.y * 0.1) * 4), Math.round(h.y), UI.rose));
     },
     ui() {
-      if (this.phase === "ready") E.centerPlate(["ESPACE ou A : FAIRE MA DEMANDE"], 12, UI.gold);
+      if (this.phase === "ready") E.centerPlate(["ESPACE ou CLIC : FAIRE MA DEMANDE"], 12, UI.gold);
       if (this.phase === "answer") {
         // Bulle de réponse : « Veux-tu m'épouser ? » rappelé, puis les deux réponses côte à côte
         E.centerPlate(["VEUX-TU M'EPOUSER ?"], 12, UI.white);
@@ -1195,7 +1290,7 @@ canvas#screen { display: block; image-rendering: pixelated; image-rendering: cri
     line("THE NEXT LEVEL", c.height * 0.2, 18, "#7b4a24");
     line("FLORA & MAXIME", c.height * 0.4, 32, "#a4321e");
     line("28 août 2027", c.height * 0.6, 22, "#7b4a24");
-    line("Une nouvelle aventure commence...", c.height * 0.79, 12, "#7b4a24");
+    line("Une nouvelle aventure commence...", c.height * 0.79, 10.5, "#7b4a24"); // tient dans le parchemin
     c.setAttribute("role", "img");
     c.setAttribute("aria-label", "Faire-part : The next level. Flora & Maxime, 28 août 2027. Une nouvelle aventure commence...");
     c.className = "pq-fp-card";
